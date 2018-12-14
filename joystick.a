@@ -1,0 +1,601 @@
+;------------------------------------------------------------
+;check joystick (player control)
+;------------------------------------------------------------
+!zone playercontrol
+playercontrol
+          lda player_jump_pos
+          beq +
+          jmp .playerisjumping
++         jsr playermovedown
+          beq .notfalling
+          ;player fell one pixel
+          lda #sprite_player+6
+          sta sprite_pointer_base
+          lda #sprite_player+7
+          sta sprite_pointer_base+1
+          jmp .playerfell
+.notfalling          
+          lda #0
+          sta player_fall_pos
+.notdownpressed          
+          lda #$10
+          bit $dc00
+          bne .notuppressed
+          jsr addscore
+          lda #sprite_player+2
+          sta sprite_pointer_base
+          lda #sprite_player+3
+          sta sprite_pointer_base+1
+          jmp .playerisjumping
+.playerfell
+          ldx player_fall_pos
+          lda fall_speed_table,x
+          beq .fallcomplete
+          sta param5
+.fallloop          
+          dec param5
+          beq .fallcomplete
+          jsr playermovedown
+          jmp .fallloop
+.fallcomplete
+          lda player_fall_pos
+          cmp #( fall_table_size - 1 )
+          beq .fallspeedatmax
+          inc player_fall_pos
+          jmp .notuppressed 
+.fallspeedatmax
+		  lda #sprite_player+6
+          sta sprite_pointer_base
+          lda #sprite_player+7
+          sta sprite_pointer_base+1   
+.notuppressed       
+.jumpstopped
+.jumpcomplete
+          lda #$04
+          bit $dc00
+          bne .notleftpressed
+          jsr playermoveleft
+.notleftpressed
+          lda #$08
+          bit $dc00
+          bne .notrightpressed
+          jsr playermoveright
+          lda anim
+          eor #$01
+          sta anim
+          bne +
+          lda #sprite_player+4
+          sta sprite_pointer_base
+          lda #sprite_player+5
+          sta sprite_pointer_base+1
+          jmp .notrightpressed
++         lda #sprite_player+6
+          sta sprite_pointer_base
+          lda #sprite_player+7
+          sta sprite_pointer_base+1
+.notrightpressed
+          ;restore x
+          ldx #0
+          rts
+.playerisjumping
+          inc player_jump_pos
+          lda player_jump_pos
+          cmp #jump_table_size
+          bne .jumpon
+          lda #0
+          sta player_jump_pos
+          jmp .jumpcomplete
+.jumpon                    
+          ldx player_jump_pos
+          lda player_jump_table,x
+          beq .jumpcomplete
+          sta param5
+.jumpcontinue          
+          jsr playermoveup
+          jsr playermoveup
+          beq .jumpblocked
+          dec param5
+          bne .jumpcontinue
+          jmp .jumpcomplete
+.jumpblocked
+          lda #0
+          sta player_jump_pos
+          jmp .jumpstopped
+;------------------------------------------------------------
+;playermoveleft
+;------------------------------------------------------------
+!zone playermoveleft
+playermoveleft  
+		  lda sprite_char_pos_x
+		  bne +
+		  rts
++		  lda sprite_pos_x
+          ldx #0
+          jsr objectmoveleft
+          inx
+          jsr objectmoveleft
+          rts
+;------------------------------------------------------------
+;move object left if not blocked
+;x = object index
+;------------------------------------------------------------
+!zone objectmoveleft
+objectmoveleft          
+          lda sprite_char_pos_x_delta,x
+          beq .checkcanmoveleft
+.canmoveleft
+          dec sprite_char_pos_x_delta,x
+          jsr movespriteleft
+          lda #1
+          rts
+.checkcanmoveleft
+          lda sprite_char_pos_y_delta,x
+          beq .nothirdcharcheckneeded
+          ldy sprite_char_pos_y,x
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          lda sprite_char_pos_x,x
+          clc
+          adc #39
+          tay
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedleft
+.nothirdcharcheckneeded          
+          ldy sprite_char_pos_y,x
+          dey
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          ldy sprite_char_pos_x,x
+          dey
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedleft
+          tya
+          clc
+          adc #40
+          tay
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedleft
+          lda #8
+          sta sprite_char_pos_x_delta,x
+          dec sprite_char_pos_x,x
+          jmp .canmoveleft
+.blockedleft
+          lda #0
+          rts
+;------------------------------------------------------------
+;playermoveright
+;------------------------------------------------------------
+!zone playermoveright
+playermoveright
+          ldx #0
+          jsr objectmoveright
+          inx
+          jsr objectmoveright
+          rts
+;------------------------------------------------------------
+;move object right if not blocked
+;x = object index
+;------------------------------------------------------------
+!zone objectmoveright
+objectmoveright
+          lda sprite_char_pos_x_delta,x
+          beq .checkcanmoveright
+.canmoveright
+          inc sprite_char_pos_x_delta,x
+          lda sprite_char_pos_x_delta,x
+          cmp #8
+          bne .nocharstep
+          lda #0
+          sta sprite_char_pos_x_delta,x
+          inc sprite_char_pos_x,x
+.nocharstep          
+          jsr movespriteright
+          lda #1
+          rts
+.checkcanmoveright
+          lda sprite_char_pos_y_delta,x
+          beq .nothirdcharcheckneeded
+          ldy sprite_char_pos_y,x
+          iny
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          ldy sprite_char_pos_x,x
+          iny
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedright
+.nothirdcharcheckneeded          
+          ldy sprite_char_pos_y,x
+          dey
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          ldy sprite_char_pos_x,x
+          iny
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedright
+          tya
+          clc
+          adc #40
+          tay
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedright
+          jmp .canmoveright
+.blockedright 
+          lda #0
+          rts
+;------------------------------------------------------------
+;playermoveup
+;------------------------------------------------------------
+!zone playermoveup
+playermoveup
+          ldx #0
+          jsr objectmoveup
+          inx
+          jsr objectmoveup
+          rts
+;------------------------------------------------------------
+;move object up if not blocked
+;x = object index
+;------------------------------------------------------------
+!zone objectmoveup
+objectmoveup
+          lda sprite_char_pos_y_delta,x
+          beq .checkcanmoveup
+.canmoveup
+          dec sprite_char_pos_y_delta,x
+          lda sprite_char_pos_y_delta,x
+          cmp #$ff
+          bne .nocharstep
+          dec sprite_char_pos_y,x
+          lda #7
+          sta sprite_char_pos_y_delta,x
+.nocharstep          
+          jsr movespriteup
+          lda #1
+          rts
+.checkcanmoveup
+          lda sprite_char_pos_x_delta,x
+          beq .nosecondcharcheckneeded
+          ldy sprite_char_pos_y,x
+          dey
+          dey
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          ldy sprite_char_pos_x,x
+          iny
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedup
+.nosecondcharcheckneeded          
+          ldy sprite_char_pos_y,x
+          dey
+          dey
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          ldy sprite_char_pos_x,x
+          lda (zeropage_pointer_1),y
+          jsr ischarblocking
+          bne .blockedup
+          jmp .canmoveup
+.blockedup
+          lda #0
+          rts
+;------------------------------------------------------------
+;playermovedown
+;------------------------------------------------------------
+!zone playermovedown
+playermovedown
+          ldx #0
+          jsr objectmovedown
+          inx
+          jsr objectmovedown
+          rts
+;------------------------------------------------------------
+;move object down if not blocked
+;x = object index
+;------------------------------------------------------------
+!zone objectmovedown
+objectmovedown
+          lda sprite_char_pos_y_delta,x
+          beq .checkcanmovedown
+.canmovedown
+          inc sprite_char_pos_y_delta,x
+          lda sprite_char_pos_y_delta,x
+          cmp #8
+          bne .nocharstep
+          lda #0
+          sta sprite_char_pos_y_delta,x
+          inc sprite_char_pos_y,x
+.nocharstep          
+          jsr movespritedown
+          lda #1
+          rts
+.checkcanmovedown
+          lda sprite_char_pos_x_delta,x
+          beq .nosecondcharcheckneeded
+          ldy sprite_char_pos_y,x
+          iny
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          ldy sprite_char_pos_x,x
+          iny
+          lda (zeropage_pointer_1),y
+          jsr ischarblockingfall
+          bne .blockeddown
+.nosecondcharcheckneeded          
+          ldy sprite_char_pos_y,x
+          iny
+          lda screen_line_offset_table_lo,y
+          sta zeropage_pointer_1
+          lda screen_line_offset_table_hi,y
+          sta zeropage_pointer_1 + 1
+          ldy sprite_char_pos_x,x
+          lda (zeropage_pointer_1),y
+          jsr ischarblockingfall
+          bne .blockeddown
+          jmp .canmovedown
+.blockeddown
+          lda #0
+          rts
+;------------------------------------------------------------
+;move sprite left
+;expect x as sprite index (0 to 7)
+;------------------------------------------------------------
+!zone movespriteleft
+movespriteleft
+          dec sprite_pos_x,x
+          bpl .nochangeinextendedflag
+          lda bit_table,x
+          eor #$ff
+          and sprite_pos_x_extend
+          sta sprite_pos_x_extend
+          sta vic_sprite_x_extend
+.nochangeinextendedflag     
+          txa
+          asl
+          tay
+          lda sprite_pos_x,x
+          sta vic_sprite_x_pos,y
+          rts  
+;------------------------------------------------------------
+;move sprite right
+;expect x as sprite index (0 to 7)
+;------------------------------------------------------------
+!zone movespriteright
+movespriteright
+          inc sprite_pos_x,x
+          lda sprite_pos_x,x
+          bne .nochangeinextendedflag
+          lda bit_table,x
+          ora sprite_pos_x_extend
+          sta sprite_pos_x_extend
+          sta vic_sprite_x_extend
+.nochangeinextendedflag     
+          txa
+          asl
+          tay
+          lda sprite_pos_x,x
+          sta vic_sprite_x_pos,y
+          rts  
+;------------------------------------------------------------
+;move sprite up
+;expect x as sprite index (0 to 7)
+;------------------------------------------------------------
+!zone movespriteup
+movespriteup
+          dec sprite_pos_y,x
+          txa
+          asl
+          tay
+          lda sprite_pos_y,x
+          sta 53249,y
+          rts  
+;------------------------------------------------------------
+;move sprite down
+;expect x as sprite index (0 to 7)
+;------------------------------------------------------------
+!zone movespritedown
+movespritedown
+          inc sprite_pos_y,x
+          txa
+          asl
+          tay
+          lda sprite_pos_y,x
+          sta 53249,y
+          rts 
+;------------------------------------------------------------
+;IsCharBlocking
+;checks if a char is blocking
+;PARAM1 = char_pos_x
+;PARAM2 = char_pos_y
+;returns 1 for blocking, 0 for not blocking
+;------------------------------------------------------------
+!zone ischarblocking
+ischarblocking
+          cmp #2
+          beq .blocking
+          cmp #3
+          beq .blocking  
+          lda #0
+          rts         
+.blocking
+          lda #0
+          rts
+;------------------------------------------------------------
+;IsCharBlockingFall
+;checks if a char is blocking a fall (downwards)
+;PARAM1 = char_pos_x
+;PARAM2 = char_pos_y
+;returns 1 for blocking, 0 for not blocking
+;------------------------------------------------------------
+!zone ischarblockingfall
+ischarblockingfall
+          cmp #2
+          beq .blocking
+          cmp #3
+          beq .blocking
+          cmp #5
+          bcc +
+          cmp #25
+          bcc restartgame 
++         cmp #36
+		  bcc +
+		  cmp #65
+		  bcc restartgame
++		  lda #0
+          rts         
+.blocking
+		  lda #sprite_player
+          sta sprite_pointer_base
+          lda #sprite_player+1
+          sta sprite_pointer_base+1 
+          lda #$01
+          rts
+restartgame
+		  lda #$15
+		  sta temp1
+		  lda vic_sprite_multicolor
+		  and #%01111111 
+		  sta vic_sprite_multicolor
+		  lda vic_sprite_enable
+		  and #%00011111
+		  ora #$80
+		  sta vic_sprite_enable
+		  lda #sprite_ring
+          sta sprite_pointer_base+7
+          lda #$07
+          sta vic_sprite_color+7
+          lda #$0
+          sta vic_sprite_color
+          lda $d000
+          sta $d00e
+          lda $d010
+          and #%01111111
+          sta $d010       
+          lda $d001
+          sec
+          sbc #7
+          sta $d00f        
+-		  lda animdeath
+          eor #$01
+          sta animdeath
+          bne +
+          lda #sprite_death
+          sta sprite_pointer_base
+          lda #sprite_death+1
+          sta sprite_pointer_base+1
+          jmp .contanim
++         lda #sprite_death+2
+          sta sprite_pointer_base
+          lda #sprite_death+3
+          sta sprite_pointer_base+1
+.contanim ldx #$00
+	      jsr movespriteup
+	      ldx #$01
+	      jsr movespriteup
+          lda $d001
+          sec
+          sbc #6
+          sta $d00f      
+		  jsr waitpanel
+		  jsr waitpanel
+		  dec temp1
+		  bpl -
+          ldy #10
+-         jsr waitpanel
+          dey
+          bpl -
+		  lda vic_sprite_enable	  
+		  and #%11111100 
+		  sta vic_sprite_enable
+		  lda #$00
+		  sta gamemode
+		  sta vic_sprite_enable
+		  dec ninjalive
+		  bmi +
+		  jmp gamestart 
++		  jsr gameover
+gamecomplete
+		  ldx #$1
+		  stx levelmap    
+		  dex
+          stx button_released
+.titleloop            
+          lda #$10
+          bit $dc00
+          bne .buttonnotpressed
+          lda button_released      ;button pushed
+          bne .gamestart 
+          jsr waitras  
+          jmp .titleloop         
+.buttonnotpressed
+          lda #1
+          sta button_released
+          jmp .titleloop
+.gamestart 
+		  lda #1
+		  sta clear
+		  jsr clearscreen
+		  lda #$00
+		  sta $d418
+		  sta $d015
+		  sei	  
+		  jmp game
+animdeath !byte 0		         
+;------------------------------------------------------------------------------¬
+;Variabili per gli sprite visualizzati                                         ¦
+;------------------------------------------------------------------------------          
+player_jump_pos
+          	!byte 0       
+sprite_pos_x_extend
+          	!byte 0
+player_fall_pos
+          	!byte 0 
+player_jump_table
+          	!byte 3,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0
+fall_speed_table
+         	!byte 1,1,1,1,1,1,2,1,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,4,4,4,0
+sprite_char_pos_x
+          	!byte 0,0,0,0,0,0,0,0
+sprite_char_pos_x_delta
+          	!byte 0,0,0,0,0,0,0,0
+sprite_char_pos_y
+          	!byte 0,0,0,0,0,0,0,0
+sprite_char_pos_y_delta
+            !byte 0,0,0,0,0,0,0,0
+sprite_pos_y
+          	!byte 0,0,0,0,0,0,0,0
+sprite_pos_x 
+          	!byte 0,0,0,0,0,0,0,0 
+sprite_anim_pos
+            !byte 0,0,0,0,0,0,0,0
+sprite_anim_delay
+            !byte 0,0,0,0,0,0,0,0    	        
+sprite_active
+            !byte 0,0,0,0,0,0,0,0 
+sprite_direction            
+            !byte 0,0,0,0,0,0,0,0    
+bit_table
+          	!byte 1,2,4,8,16,32,64,128  
+delayed_generic_counter
+            !byte 0  
+anim		!byte 0                    

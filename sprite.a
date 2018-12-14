@@ -1,0 +1,343 @@
+;--------------------------------------------------------------------------
+;initialize the sprite ninja
+;and position on screen
+;--------------------------------------------------------------------------
+!zone init_sprite_ninja
+init_sprite_ninja
+			ldx level
+			dex	
+			lda startx,x
+			sta param1
+			lda starty,x
+			sta param2
+			ldx #0 	;sprite 0
+			jsr calcspriteposfromcharpos          ;set sprite position 0
+			;
+			ldx #1  ;sprite 1
+			jsr calcspriteposfromcharpos          ;set sprite position 1
+enableninja
+            lda #sprite_player
+            sta sprite_pointer_base                ; sprite 0
+			lda #sprite_player+1
+            sta sprite_pointer_base+1              ; sprite 1
+            lda vic_sprite_enable
+            ora #%00000011
+            sta vic_sprite_enable	
+            rts	
+;--------------------------------------------------------------------------
+;initialize the sprite sun
+;and position on screen
+;--------------------------------------------------------------------------            
+!zone init_sprite_sun
+init_sprite_sun
+			lda #30
+			sta param1
+			lda #4
+			sta param2
+			ldx #2   ;sprite 2
+			jsr calcspriteposfromcharpos          ;set sprite position 2
+enablesun
+            lda #sprite_sun
+            sta sprite_pointer_base+2                ; sprite 2
+			lda vic_sprite_enable
+            ora #%00000100
+            sta vic_sprite_enable
+            rts	                    
+;--------------------------------------------------------------------------
+;initialize the sprite cloud
+;and position on screen
+;--------------------------------------------------------------------------            
+!zone init_sprite_cloud
+init_sprite_cloud
+			lda #20
+			sta param1
+			lda #3
+			sta param2
+			ldx #3   ;sprite 3
+			jsr calcspriteposfromcharpos          ;set sprite position 3
+			;
+            lda #10
+			sta param1
+			lda #5
+			sta param2
+			ldx #4   ;sprite 4
+			jsr calcspriteposfromcharpos          ;set sprite position 4
+enablecloud
+            lda #sprite_cloud
+            sta sprite_pointer_base+3                ; sprite 3
+			lda #sprite_cloud
+            sta sprite_pointer_base+4                ; sprite 4
+			lda vic_sprite_enable
+            ora #%00011000
+            sta vic_sprite_enable
+            rts	
+;--------------------------------------------------------------------------
+;initialize the countdown and jump on screen
+;and position on screen
+;--------------------------------------------------------------------------            
+!zone init_sprite_cdown
+init_sprite_cdown
+			lda #19
+			sta param1
+			lda #6
+			sta param2
+			ldx #5   ;sprite 5
+			jsr calcspriteposfromcharpos          ;set sprite position 5
+enablecdown
+            lda #sprite_countdown
+            sta sprite_pointer_base+5                ; sprite 5
+			lda vic_sprite_enable
+            ora #%00100000
+            sta vic_sprite_enable
+            lda #$01
+            sta vic_sprite_color+5  
+			sta vic_sprite_color+6
+            lda #%00100000
+disablexpand            
+            sta $d017
+            sta $d01d
+            rts
+countdown                               ;conto alla rocesci          	
+.loop		ldx sprite_pointer_base+5
+            dex
+            ldy #10
+-           jsr waitpanel
+            dey
+            bpl -
+            stx sprite_pointer_base+5
+            cpx #sprite_base+25
+            bne .loop
+            jsr waitpanel
+            jsr waitpanel
+            jsr waitpanel
+            lda #$00
+            jsr disablexpand
+            lda vic_sprite_enable
+            ora #%01100000
+            sta vic_sprite_enable
+            lda #21
+			sta param1
+			lda #6
+			sta param2
+			ldx #6   ;sprite 6
+			jsr calcspriteposfromcharpos          ;set sprite position 6
+            lda #sprite_jump0
+            sta sprite_pointer_base+5
+            lda #sprite_jump1
+            sta sprite_pointer_base+6
+            ldy #20
+-           jsr waitpanel
+            dey
+            bpl -
+            lda vic_sprite_enable
+            and #%10011111
+            sta vic_sprite_enable 
+            rts  
+;--------------------------------------------------------------------------
+;initialize the black ninja
+;and position on screen
+;--------------------------------------------------------------------------            
+!zone init_sprite_bninja
+init_sprite_bninja
+			lda #$00
+			sta onoff+1
+			lda #43
+			sta param1
+			sta cposx+1
+			sta cposx1+1
+			jsr generaterandomrumber
+			and #$0f
+			tax
+			inx
+			stx param2
+			stx cposy1+1
+			inx
+			inx
+			stx cposy+1
+			ldx #5   ;sprite 5
+			jsr calcspriteposfromcharpos          ;set sprite position 5  ninja         
+cposx       lda #$00
+			sta param1
+cposy		lda #$00
+			sta param2
+			ldx #6   ;sprite 6
+			jsr calcspriteposfromcharpos          ;set sprite position 6 nuvola
+cposx1      lda #$00
+			sta param1
+cposy1		lda #$00
+			sta param2
+			ldx #7   ;sprite 7
+			jsr calcspriteposfromcharpos          ;set sprite position 7 ninja
+			lda vic_sprite_enable
+            ora #%11100000
+            sta vic_sprite_enable  
+            lda #sprite_ninja                    ; sprite da 36-38
+            sta sprite_pointer_base+5
+            lda #sprite_cloud1
+            sta sprite_pointer_base+6 
+            lda #sprite_ninja+1
+            sta sprite_pointer_base+7 
+            ldx #$00
+            stx vic_sprite_color+5 
+            inx 
+			stx vic_sprite_color+6 
+			lda #$07
+			sta vic_sprite_color+7
+            rts   
+!zone move_blackninja
+move_blackninja
+onoff		lda #$00
+			bne .exit
+			ldx #5
+			lda sprite_char_pos_x,x
+			bne .move
+            lda #$00
+            sta onoff+1
+            lda vic_sprite_enable
+            and #%11111111
+            sta vic_sprite_enable
+            jsr init_sprite_bninja 
+            lda #$00
+			sta move 			
+        	jmp .exit
+.move       ldx #5
+			jsr objectmoveleft
+			jsr objectmoveleft
+			ldx #6
+			jsr objectmoveleft
+			jsr objectmoveleft
+			ldx #7
+			jsr objectmoveleft
+			jsr objectmoveleft 
+.exit   	
+			rts	
+moveblack_ninja
+			lda sprite_pointer_base
+			cmp #sprite_death
+			beq +
+            jsr move_blackninja         
++			rts            				             				             				             				 
+;------------------------------------------------------------------------------
+;calcspriteposfromcharpos                                                    
+;calculates the real sprite coordinates from screen char pos                 
+;and sets them directly                                                      
+;param1 = char_pos_x param2 = char_pos_y                                     
+;X= sprite index                                                       
+;------------------------------------------------------------------------------
+!zone calcspriteposfromcharpos    
+calcspriteposfromcharpos
+          ;offset screen to border 24,50
+          lda bit_table,x
+          eor #$ff
+          and sprite_pos_x_extend
+          sta sprite_pos_x_extend
+          sta vic_sprite_x_extend
+          ;need extended x bit?
+          lda param1
+          sta sprite_char_pos_x,x
+          cmp #30
+          bcc .noxbit
+          lda bit_table,x
+          ora sprite_pos_x_extend
+          sta sprite_pos_x_extend
+          sta vic_sprite_x_extend
+.noxbit   
+          ;calculate sprite positions (offset from border)
+          txa
+          asl
+          tay
+          lda param1
+          asl
+          asl
+          asl
+          clc
+          adc #( 24 - sprite_center_offset_x )
+          sta sprite_pos_x,x
+          sta vic_sprite_x_pos,y
+          lda param2
+          sta sprite_char_pos_y,x
+          asl
+          asl
+          asl
+          clc
+          adc #( 50 - sprite_center_offset_y )
+          sta sprite_pos_y,x
+          sta vic_sprite_y_pos,y
+          lda #0
+          sta sprite_char_pos_x_delta,x
+          sta sprite_char_pos_y_delta,x
+          rts
+; ---------------------------------------------------------------------
+checkcollisions
+          ldx #4
+.collisionloop          
+          lda sprite_active,x
+          bne .checkobject
+.nextobject          
+          inx
+          cpx #8
+          bne .collisionloop          
+          lda #0
+          sta vic_border_color
+          rts
+.checkobject
+          stx param2
+          jsr isenemycollidingwithplayer
+          bne .playercollidedwithenemy
+          ldx param2
+          jmp .nextobject
+.playercollidedwithenemy
+		  pla
+		  pla          
+          jmp restartgame
+!zone isenemycollidingwithplayer
+.calculatesimplexpos
+          ;returns a with simple x pos (x halved + 128 if > 256)
+          ;modifies y
+          lda bit_table,x
+          and sprite_pos_x_extend
+          beq .noxbit
+          lda sprite_pos_x,x
+          lsr
+          clc
+          adc #128
+          rts
+.noxbit          
+          lda sprite_pos_x,x
+          lsr
+          rts
+isenemycollidingwithplayer
+          ;modifies x
+          ;check y pos
+          lda sprite_pos_y,x
+          sec
+          sbc #( object_height )      ;offset to bottom
+          cmp sprite_pos_y
+          bcs .nottouching
+          clc
+          adc #( object_height + object_height - 1 )
+          cmp sprite_pos_y
+          bcc .nottouching
+          ;x = index in enemy-table
+          jsr .calculatesimplexpos
+          sta param1
+          ldx #0
+          jsr .calculatesimplexpos
+          sec
+          sbc #4
+          ;position x-anfang player - 12 pixel
+          cmp param1
+          bcs .nottouching
+          adc #8
+          cmp param1
+          bcc .nottouching
+          lda #1
+          rts
+.nottouching
+          lda #0
+          rts
+		
+startx    !byte 13,13,13,13,13,13,13,13,13 ;ninja sprite start X 
+starty    !byte 8,11,13,8,11,13,8,11,13  ;ninja sprite start y
+
+		  

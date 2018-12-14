@@ -1,0 +1,383 @@
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│CLOSEGAMESCREEN                                                              │
+;│                                                                             │
+;│Blanks out the gamescreen, for redrawing, loading etc.                       │
+;└─────────────────────────────────────────────────────────────────────────────┘
+!zone closegamescreen
+closegamescreen
+				jsr waitpanel
+				lda #$0b
+				sta $d011
+				rts
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│OPENGAMESCREEN                                                               │
+;│                                                                             │
+;│Open out the gamescreen, for redrawing, loading etc.                         │
+;└─────────────────────────────────────────────────────────────────────────────┘
+!zone opengamescreen
+opengamescreen
+				jsr waitpanel
+				lda #$1b
+				sta $d011
+				rts	
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│CHECKSCROLL                                                                  │
+;└─────────────────────────────────────────────────────────────────────────────┘					
+checkscroll     ldx #$00
+				jmp +                  ;questo è il cheath code...
+				ldy sprite_char_pos_y,x
+        	    iny
+          		lda screen_line_offset_table_lo,y
+          		sta zeropage_pointer_1
+          		lda screen_line_offset_table_hi,y
+          		sta zeropage_pointer_1 + 1
+          		ldy sprite_char_pos_x,x
+          		lda (zeropage_pointer_1),y
+          		jsr ischarblockingfall
+          		beq +
+          		jmp noneedscroll
++               lda sprite_char_pos_x
+                cmp #1
+                bcc noneedscroll
+                 
+needscroll      ldx #$01
+ 			    txa
+                rts	
+.flash			lda  vic_sprite_color
+				eor #$01
+				sta  vic_sprite_color
+				jmp needscroll                
+noneedscroll    jmp restartgame			
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│INITSCROLL                                                                   │
+;│                                                                             │
+;│Initializes scrolling clear screen and color ram                             │
+;└─────────────────────────────────────────────────────────────────────────────┘
+!zone initscroll
+initscroll    
+                ldx #39
+iscr1
+                !set n=0
+                !do {
+                lda #$00
+                sta screen_char+n*40,x
+                lda #$03
+                sta colorram+n*40,x
+                !set n = n + 1
+                } until n > 23
+                dex
+                bmi iscrdone1
+                jmp iscr1
+iscrdone1       lda #$00
+                sta mapx
+                sta blockx
+                lda #$07
+                sta scrollx
+                lda level
+                sec
+                sbc #$01
+                asl
+                tax
+                lda levelmaptbl,x
+                sta mapadrlo
+                lda levelmaptbl+1,x
+                sta mapadrhi
+                rts
+doscroll       	ldx mapx
+                cpx #lenghtmap
+                bcc doscrollok
+                pla
+                pla
+                jmp nextlevel
+                rts
+doscrollok      sta scrsub+1
+				lda gamemode
+				beq +
+				ldy sprite_char_pos_y
+        	    iny
+          		lda screen_line_offset_table_lo,y
+          		sta zeropage_pointer_1
+          		lda screen_line_offset_table_hi,y
+          		sta zeropage_pointer_1 + 1
+          		ldy sprite_char_pos_x
+          		lda (zeropage_pointer_1),y
+          		jsr ischarblockingfall
+          		beq +
+          		jsr playermoveleft
++               lda scrollx
+                sec
+scrsub          sbc #$00
+                bmi scrshift
+                sta scrollx
+                rts
+scrshift        and #$07
+                sta scrollx
+                ldx #$00
+scrshiftloop1
+				lda $c541,x
+				sta $c540,x
+				lda $d941,x
+				sta $d940,x				
+				lda $c569,x
+				sta $c568,x
+				lda $d969,x
+				sta $d968,x
+				lda $c591,x
+				sta $c590,x
+				lda $d991,x
+				sta $d990,x
+				lda $c5b9,x
+				sta $c5b8,x
+				lda $d9b9,x
+				sta $d9b8,x
+				lda $c5e1,x
+				sta $c5e0,x
+				lda $d9e1,x
+				sta $d9e0,x
+				lda $c609,x
+				sta $c608,x
+				lda $da09,x
+				sta $da08,x				
+				lda $c631,x
+				sta $c630,x
+				lda $da31,x
+				sta $da30,x
+				lda $c659,x
+				sta $c658,x
+				lda $da59,x
+				sta $da58,x
+				lda $c681,x
+				sta $c680,x
+				lda $da81,x
+				sta $da80,x
+				lda $c6a9,x
+				sta $c6a8,x
+				lda $daa9,x
+				sta $daa8,x
+                inx
+                cpx #$27
+                bne scrshiftloop1
+                ldx #$00
+scrshiftloop2
+				
+	            lda $c6d1,x
+				sta $c6d0,x
+				lda $dad1,x
+				sta $dad0,x
+				lda $c6f9,x
+				sta $c6f8,x
+				lda $daf9,x
+				sta $daf8,x
+				lda $c721,x
+				sta $c720,x
+				lda $db21,x
+				sta $db20,x
+				inx
+                cpx #$27
+                bne scrshiftloop2
+                ldx #$00
+-				lda $c749,x
+				sta $c748,x
+				lda $db49,x
+				sta $db48,x
+				lda $c771,x
+				sta $c770,x
+				lda $c799,x
+				sta $c798,x	
+				lda $db71,x 
+				sta $db70,x  
+				lda $db99,x  
+				sta $db98,x
+                inx
+                cpx #$27
+                bne -;scrshiftloop2
+                lda mapadrlo
+                clc
+                adc mapx
+                sta temp1
+                lda mapadrhi
+                adc #$00
+                sta temp2
+                lda #<(screen_char+(8*40)+39)  ; 8 numero della riga da dove scrivere in screeram
+                sta temp3
+				sta temp6
+                lda #>(screen_char+(8*40)+39)
+                sta temp4
+				clc
+				adc #$14
+				sta temp7
+                lda #16    ;  
+                sta temp5  ;numero di linee sta stampare a video
+                ldy #$00
+scrblockloop    ldx blockx
+                lda (temp1),y
+                tay
+                lda blocktbllo,y
+                sta scrblockget+1
+                lda blocktblhi,y
+                sta scrblockget+2
+                lda temp1
+                clc
+                adc #lenghtmap
+                sta temp1
+                lda temp2
+                adc #$00
+                sta temp2
+                ldy #$00
+scrblockget     lda $1000,x
+                sta (temp3),y
+				stx temp8
+				tax
+				lda color,x
+				sta (temp6),y
+				ldx temp8
+                lda temp3
+                clc
+                adc #40
+                sta temp3
+                lda temp4
+                adc #0
+                sta temp4
+				lda temp6
+                clc
+                adc #40
+                sta temp6
+                lda temp7
+                adc #0
+                sta temp7
+                txa
+                adc #2
+                tax
+                dec temp5
+                beq scrblockready
+                cpx #$04
+                bcc scrblockget
+                jmp scrblockloop
+scrblockready   inc blockx
+                lda blockx
+                cmp #$02
+                bcc scrblockready2
+                lda #$00
+                sta blockx
+                inc mapx
+scrblockready2  rts   
+!zone nextlevel
+nextlevel  		
+				lda #$00
+	            sta vic_sprite_enable
+				ldx #8
+.ip_loop   		
+				lda testo1,x
+				clc
+				adc #86
+           		sta screen_char+6*40+15,x
+           		dex
+	            bpl .ip_loop
+	            ldx #14
+.ip_loop1
+                lda testo2,x
+                clc
+                adc #86
+                sta screen_char+8*40+12,x
+	            dex
+	            bpl .ip_loop1
+	            jsr waitras
+	            jsr waitras
+	            lda #$00     
+                sta button_released
+.titleloop            
+                lda #$10
+                bit $dc00
+                bne .buttonnotpressed
+                lda button_released      ;button pushed
+                bne .gamestart        
+                jmp .titleloop         
+.buttonnotpressed
+                lda #1
+                sta button_released
+                jmp .titleloop
+.gamestart  	     
+				jsr closegamescreen		 
+	            inc level
+	            lda level
+	            cmp #10
+	            bne .contx
+	            jmp endgame
+.contx          lda #20
+	            sta checkpoint      
+	            jmp gamestart		
+testo1			
+				!scr "well done"
+testo2			
+				!scr "level complete!"        
+levelmaptbl    
+			    !word map,map+250*8,map+(250*16) ; 0-2
+			    !word map,map+250*8,map+(250*16) ; 3-6
+			    !word map,map+250*8,map+(250*16) ; 7-9
+blocktbllo
+				!set i=0
+				!do  {
+				!byte <blocks+i*4 
+				!set i = i + 1
+				} until i > num_tiles
+blocktblhi
+				!set i=0
+				!do  {
+				!byte >blocks+i*4 
+				!set i = i + 1
+				} until i > num_tiles	
+;--------------------------------------------------------------
+screen_line_offset_table_lo
+rowtbllo
+          !byte ( screen_char +   0 ) & 0x00ff
+          !byte ( screen_char +  40 ) & 0x00ff
+          !byte ( screen_char +  80 ) & 0x00ff
+          !byte ( screen_char + 120 ) & 0x00ff
+          !byte ( screen_char + 160 ) & 0x00ff
+          !byte ( screen_char + 200 ) & 0x00ff
+          !byte ( screen_char + 240 ) & 0x00ff
+          !byte ( screen_char + 280 ) & 0x00ff
+          !byte ( screen_char + 320 ) & 0x00ff
+          !byte ( screen_char + 360 ) & 0x00ff
+          !byte ( screen_char + 400 ) & 0x00ff
+          !byte ( screen_char + 440 ) & 0x00ff
+          !byte ( screen_char + 480 ) & 0x00ff
+          !byte ( screen_char + 520 ) & 0x00ff
+          !byte ( screen_char + 560 ) & 0x00ff
+          !byte ( screen_char + 600 ) & 0x00ff
+          !byte ( screen_char + 640 ) & 0x00ff
+          !byte ( screen_char + 680 ) & 0x00ff
+          !byte ( screen_char + 720 ) & 0x00ff
+          !byte ( screen_char + 760 ) & 0x00ff
+          !byte ( screen_char + 800 ) & 0x00ff
+          !byte ( screen_char + 840 ) & 0x00ff
+          !byte ( screen_char + 880 ) & 0x00ff
+          !byte ( screen_char + 920 ) & 0x00ff
+          !byte ( screen_char + 960 ) & 0x00ff
+screen_line_offset_table_hi          
+rowtblhi
+          !byte ( ( screen_char +   0 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char +  40 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char +  80 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 120 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 160 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 200 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 240 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 280 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 320 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 360 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 400 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 440 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 480 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 520 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 560 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 600 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 640 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 680 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 720 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 760 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 800 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 840 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 880 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 920 ) & 0xff00 ) >> 8
+          !byte ( ( screen_char + 960 ) & 0xff00 ) >> 8

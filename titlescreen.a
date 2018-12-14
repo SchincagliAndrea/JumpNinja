@@ -1,0 +1,262 @@
+!zone titlescreen
+titlescreen	
+			jsr closegamescreen
+			lda #32
+			sta clear
+			jsr clearscreen
+			jsr showhirespic
+			jsr initirq 
+			jsr textpressfire
+			jsr checkhigscore
+			jsr drawhiscore
+			jsr titleshurikan
+		    ldx #$00      
+            stx button_released
+.titleloop            
+            lda #$10
+            bit $dc00
+            bne .buttonnotpressed
+            lda button_released      ;button pushed
+            bne .gamestart        
+            jmp .titleloop         
+.buttonnotpressed
+            lda #1
+            sta button_released
+            jmp .titleloop
+.gamestart  jsr closegamescreen
+			rts
+!zone textpressfire
+textpressfire
+			ldx #39
+.ip_loop  	lda pressfire,x
+            sta screen_char+22*40,x
+            lda hiscoretext,x
+            sta screen_char+24*40,x
+            lda #$01
+            sta $d800+22*40,x
+            sta $d800+24*40,x
+            dex
+            bpl .ip_loop
+            rts			
+;
+;SHOWHIRESPIC                                                               
+;
+;Show hires pic of JUMP NINJA                                           
+;
+!zone showhirespic
+showhirespic
+           
+			lda #<bitmap
+       		ldy #>bitmap
+       		jsr decrunch
+       		lda #<colormem
+       		ldy #>colormem
+       		jsr decrunch
+       		lda #<videomem
+       		ldy #>videomem
+       		jsr decrunch
+            rts	
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│INITIRQ                                                                      │
+;│                                                                             │
+;│Init the irq (play music)                                                    │
+;└─────────────────────────────────────────────────────────────────────────────┘
+!zone initirq 
+initirq
+				sei
+                lda #<nmi
+                sta $fffa
+                lda #>nmi
+                sta $fffb
+                lda #<irqbitmapscreen
+                sta $fffe
+                lda #>irqbitmapscreen
+                sta $ffff
+                lda #$00
+                sta $d012
+                lda #$7f                        ;Set timer interrupt off
+                sta $dc0d
+                lda #$01                        ;Set raster interrupt on
+                sta $d01a     
+                lda $dc0d                       ;Acknowledge timer interrupt
+				lda $dd0d
+                cli
+                rts
+irqbitmapscreen
+				pha
+				txa
+				pha
+				tya
+				pha
+				asl $d019
+				lda #$03
+				sta $d020
+		        lda #$3b
+       	        sta $d011 
+       	        lda #$00
+       	        sta vic_sprite_enable
+                lda #%11001000      ; enable hi-res bitmap
+                sta $d016
+                lda #%00111000      ; memory char at $8c00 
+                sta $d018           ; bitmap at $A000 
+		     	lda #%1100001       ; %11000001 %01, 2: Bank #2, $8000-$bFFF, 36864-49151.
+		    	sta $dd00
+		    	lda #$b2
+                sta $d012	
+				lda #<irqcolor;irqtextscreen 
+                sta $fffe
+                lda #>irqcolor;irqtextscreen 
+                sta $ffff
+                jmp irqexit
+irqcolor        pha
+				txa
+				pha
+				tya
+				pha
+				asl $d019
+				ldy #$07
+-				dey
+				bne -		
+				lda #$06
+				sta $d020
+				lda #$c9
+                sta $d012	
+				lda #<irqtextscreen 
+                sta $fffe
+                lda #>irqtextscreen 
+                sta $ffff
+                jmp irqexit	     
+irqtextscreen
+ 			    pha
+				txa
+				pha
+				tya
+				pha
+				asl $d019
+irqtime 		ldy #$69;$4;<-- 4 for ntsc
+				nop
+				nop
+-				dey
+				bne -				
+				lda #$1b                        ; enable text mode
+				sta $d011 
+				lda #$06
+				sta $d021
+				lda #6
+				sta $d020
+		    	lda $dd00						;Select
+		     	and #$fc						;VIC Bank 3
+			    sta $dd00
+                lda #%00011000                  ; charset at $e000
+                sta $d018
+                lda #$c8
+                sta $d016
+                ldx #5
+                jsr animatesprite_x
+                ldx #6
+                jsr animatesprite_x
+                lda #%01100000
+                sta vic_sprite_enable
+ntscfix         lda #$1a   ; 00 for PAL 1A per NTSC
+                sta $d012	
+				lda #<irqbitmapscreen
+                sta $fffe
+                lda #>irqbitmapscreen
+                sta $ffff
+		        jmp irqexit	
+;
+; show initial test at memory $0400
+;		        
+!zone showtext
+showtext		
+				;jsr clearscreen
+				jsr initvieotext
+				jsr initvideo
+				lda #sprite_player
+           	    sta sprite_pointer_base                ; sprite 0
+			    lda #sprite_player+1
+                sta sprite_pointer_base+1              ; sprite 1
+                lda #$03
+                sta vic_sprite_enable	
+			    lda #18
+				sta param1
+				lda #21
+				sta param2
+				ldx #0 	;sprite 0
+				jsr calcspriteposfromcharpos          ;set sprite position 0
+				ldx #1  ;sprite 1
+				jsr calcspriteposfromcharpos          ;set sprite position 1
+	    		ldx #0
+.loop   	    jsr waitpanel
+		    	lda introcredit,x
+                sta screen_char+40*14,x
+                inx
+                cpx #40*4
+                bne .loop
+.titleloop            
+                lda #$10
+                bit $dc00
+                bne .buttonnotpressed
+                lda button_released      ;button pushed
+                bne .gamestart        
+                jmp .titleloop         
+.buttonnotpressed
+                lda #1
+                sta button_released
+                jmp .titleloop  
+.gamestart      lda #$00
+				sta vic_sprite_enable
+				rts 
+!zone titleshurikan
+titleshurikan				
+				lda #7
+				sta param1
+				lda #24
+				sta param2
+				ldx #5                                ;sprite 5 
+				jsr calcspriteposfromcharpos          ;set sprite position 5 shurikan
+ 				lda #sprite_shurikan
+                sta sprite_pointer_base,x              ; sprite 5
+				lda #30
+				sta param1
+				lda #24
+				sta param2
+				ldx #6                                ;sprite 6 
+				jsr calcspriteposfromcharpos          ;set sprite position 6 shurikan
+				lda #sprite_shurikan
+                sta sprite_pointer_base,x
+				lda vic_sprite_enable
+	            ora #%01100000
+	            sta vic_sprite_enable 
+	            lda #$00
+	            sta vic_sprite_color+5
+	            sta vic_sprite_color+6 	
+	            rts	
+animatesprite_x
+			    inc sprite_anim_delay,x
+		        lda sprite_anim_delay,x
+		        cmp #3
+		        bne .noanimupdate         
+		        lda #0
+		        sta sprite_anim_delay,x         
+		        inc sprite_anim_pos,x
+		        lda sprite_anim_pos,x
+		        cmp #$04
+		        bne +
+		        lda #$00
+		        sta sprite_anim_pos,x         
++		        tay
+		        lda shurikan_anim,y
+		        sta sprite_pointer_base,x	 
+.noanimupdate   rts   
+pressfire        ;0                                       0   
+			 !scr "          press fire to start          "  
+hiscoretext    
+			 !scr "            hi-score                   "		
+introcredit			    
+			!scr "  i coded this  little game for my son  "
+            !scr "  francesco  hoping that this might be  "
+            !scr "  something useful to attract  the new  "
+            !scr "  generations  to our beloved c64!      "
+			!scr "                                        "
+	

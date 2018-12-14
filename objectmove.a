@@ -1,0 +1,69 @@
+!zone moveobject
+moveobjects 
+			ldx level
+			dex		
+			cpx #$03
+			bcc .exitmove
+			lda move
+			bne .cont
+			cpx #6
+ 			bcs .cont1
+			lda #1
+			bne ninja
+.cont1		jsr generaterandomrumber
+			and #$0f
+			cmp #2
+			beq shuri
+			cmp #3
+			beq shuriup
+			cmp #4
+			beq shuridouble
+.exitmove
+			lda #$00
+			sta move
+			rts
+ninja		sta move
+			lda #$01
+			sta sprite_active+5
+			sta sprite_active+6
+			jsr init_sprite_bninja
+			rts
+shuri       sta move
+			lda #$01
+			sta sprite_active+5
+			jsr init_sprite_shurikan
+			rts	
+shuriup     sta move
+			lda #$01
+			sta sprite_active+5
+   			jsr init_sprite_shurikan_up
+   			rts		
+shuridouble sta move
+			lda #$01
+			sta sprite_active+5
+			sta sprite_active+6
+   			jsr init_sprite_shurikan_double
+   			rts		   						   						
+.cont       lda move
+			cmp #1
+			beq .move_blackninja
+			cmp #2
+			beq .move_shurikan
+			cmp #3
+			beq .move_shurikan_up
+			cmp #4
+			beq .move_shurikan_double
+			rts	
+.move_blackninja
+			jsr moveblack_ninja
+			rts		
+.move_shurikan
+			jsr moveshurikan	
+			rts		
+.move_shurikan_up
+			jsr moveshurikan_up	
+			rts	
+.move_shurikan_double
+			jsr	moveshurikan_double_a
+			jsr	moveshurikan_double_b
+			rts											

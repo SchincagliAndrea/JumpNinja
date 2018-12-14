@@ -1,0 +1,31 @@
+!zone gameover
+gameover
+			lda #$00
+			sta vic_sprite_enable
+            sta vic_sprite_multicolor  
+			ldx #$00
+            lda #9
+.loop		sta param1
+			lda #10
+			sta param2
+			jsr calcspriteposfromcharpos
+			lda param1
+			clc
+			adc #3
+			inx
+			cpx #08
+			bne .loop
+			ldx #0
+			lda #sprite_gameover
+     		sta temp1
+.loop1		sta sprite_pointer_base,x
+			lda #7
+			sta vic_sprite_color,x
+			inc temp1
+			lda temp1
+			inx
+			cpx #08
+			bne .loop1
+			lda #$ff
+			sta vic_sprite_enable
+			rts	

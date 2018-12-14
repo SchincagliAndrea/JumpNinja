@@ -1,0 +1,133 @@
+RASTER0POS      = $f2
+RASTER1POS      = $16
+
+initraster      sei
+				lda #<nmi
+                sta $fffa
+                lda #>nmi
+                sta $fffb
+                lda #<raster0                   ;Set main IRQ vector
+                sta $fffe
+                lda #>raster0
+                sta $ffff
+                lda #$7f                        ;Set timer interrupt off
+                sta $dc0d
+                lda #$01                        ;Set raster interrupt on
+                sta $d01a
+                lda $d011
+                and #$7f
+                sta $d011
+                lda #RASTER0POS                 ;Set low bits of position
+                sta $d012                       ;for first raster interrupt
+                lda $dc0d                       ;Acknowledge timer interrupt
+                cli                             ;(for safety)
+                rts
+nmi				rti
+raster0         pha
+				txa
+				pha
+				tya
+				pha
+				asl $d019
+				nop
+				nop
+				nop
+				nop
+				lda #$1b
+                sta $d011
+                lda $dd00						;Select
+		     	and #$fc						;VIC Bank 3
+			    sta $dd00
+                lda #%00011000                  ; charset at $e000
+                sta $d018
+                lda #$c8
+                sta $d016
+            	lda ntsc_music
+				beq +		; se zero play music pal
+fixit			lda #$05
+				beq reset 
+				dec fixit+1
+				jsr playmusic+3
+				jmp .exit1
+reset			lda #$05
+				sta fixit+1
+				bne .exit1		
++				jsr playmusic+3
+.exit1  
+                lda #<raster1
+                sta $fffe
+                lda #>raster1
+                sta $ffff
+                lda #RASTER1POS
+                sta $d012
+                inc rastercount
+                pla
+				tay
+				pla
+				tax
+				pla
+				rti 	
+raster1         pha
+				txa
+				pha
+				tya
+				pha
+				asl $d019
+                lda #$1b;screen
+                sta $d011
+                lda scrollx
+                and #$07
+                sta $d016
+                lda #%00010010                ;charset at $c800
+                sta $d018
+                lda #<raster0
+                sta $fffe
+                lda #>raster0
+                sta $ffff
+                lda #RASTER0POS
+                sta $d012
+irqexit         pla
+				tay
+				pla
+				tax
+				pla
+				rti 	
+waitras         lda rastercount
+                cmp #$01
+                bcc waitras
+                lda #$00
+                sta rastercount
+                rts 
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│ANIMATE_WATER                                                                │
+;│                                                                             │
+;│Animate bit rolled water                                                     │
+;└─────────────────────────────────────────────────────────────────────────────┘ 
+!zone Shift_water
+Shift_water
+		lda skip
+		eor #$01
+		sta skip
+		bne .cont
+		ldx #$00
+-		lda PatternA1,x
+		asl 
+		rol PatternA0,x
+		rol PatternA1,x
+		inx
+		cpx #$08
+		bne -
+.cont	ldx #$00
+-		lda PatternB1,x
+		asl 
+		rol PatternB0,x
+		rol PatternB1,x
+		inx
+		cpx #$08
+		bne -
+		rts
+PatternA0 = font+(26*8)
+PatternA1 = font+(27*8)
+PatternB0 = font+(28*8)
+PatternB1 = font+(29*8)		
+skip	!byte 0                               

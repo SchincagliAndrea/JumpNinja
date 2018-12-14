@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE project>
+ 
+<project name="NinjaJump" basedir="." default="runBatch">
+ 
+    <target name="runBatch">
+    	 <echo>Running batch file to test NinjaJump</echo>
+    	        <exec executable="ninja.bat">
+    	            <!-- <arg value="-p someParam" /> -->
+    	        </exec>
+    </target>
+</project>

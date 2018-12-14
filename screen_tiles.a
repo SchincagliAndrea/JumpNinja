@@ -1,0 +1,157 @@
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│STARTDRAWMAP                                                                 │
+;│                                                                             │
+;│Draw the map on screen at $c400 and sets colormap                            │
+;└─────────────────────────────────────────────────────────────────────────────┘                
+!zone startdrawmap
+startdrawmap	                    		    ; (bytes : cycles) * = add 1 cycle if page boundary crossed
+				lda #0							; (2 : 2)	Reset Row/Col
+				sta col_number
+				sta row_number
+drawmap			ldx #0							; (2 : 2)
+.loop
+				ldy #0							; (2 : 2)	current buffer offset (char position = upper left char)
+				lda (map_ptr_lo), y   			; (2 : 5*)	X now contains tile number (from Map Data)	$AF
+				tax
+				tya
+				pha
+                jsr preparetiles
+                pla
+                tay
+				ldx #$00
+charupA			lda $0000,x		            	; (2 : 4)	A now contains upper left char from tile
+				sta colortile
+				sta (cur_buffer_ptr_lo), y		; (2 : 6)	draw upper-left of tile
+				jsr color
+				inx
+charupB			lda $0000,x
+				sta colortile	             	; (2 : 4)	A now contains upper-right char from tile
+				iny                 			; (1 : 2)	current buffer offset (char pos = upper left char + 1) Y = #01
+				sta (cur_buffer_ptr_lo), y		; (2 : 6)	draw upper-right char from tile
+				jsr color
+				ldx #$02
+charupC			lda $0000, x
+				sta colortile           		; (2 : 4)	A now contains lower-left char from tile
+				ldy #40                			; (2 : 2)	jump down next line in buffer (char pos = 2nd row, left side)
+				sta (cur_buffer_ptr_lo), y		; (2 : 6)	draw lower-left char from tile
+				jsr color
+				inx
+charupD			lda $0000, x        			; (2 : 4)	A now contains lower-right char from tile
+				sta colortile
+				iny								; (1 : 2)	current buffer offset (char pos = 2nd row, right side) Y = #41
+				sta (cur_buffer_ptr_lo), y		; (2 : 6)	draw lower-right char from tile				                    			
+				jsr color
+				lda cur_buffer_ptr_lo	   		; (2 : 3)	current drawing buffer
+				clc                             ; (1 : 2)	clear the carry bit
+				adc #$02				   	    ; (2 : 2)	add 2 to current buffer  (since our tiles are 2x2)
+				sta cur_buffer_ptr_lo			; (2 : 3)	update the current buffer pointer
+				bcc +   						; skip the next instruction if C is clear (didn't roll over)
+				inc cur_buffer_ptr_hi			; we rolled over so increase the HIGH byte (ie, $34FE + 2 = $3500)
++				lda map_ptr_lo
+				clc 
+				adc #$01
+				sta map_ptr_lo
+				bcc +
+				inc map_ptr_hi
++				inc	col_number					; move to the next column
+				lda	col_number					; load the column number
+				cmp	#20							; have we reached the right side?
+				bne	.loop						; not yet...repeat loop
+				lda	#0							; yes, now reset the column number
+				sta	col_number
++				lda	cur_buffer_ptr_lo			; jump down to the next row
+				clc
+				adc	#40							; add 40 (jumps down a row)
+				sta	cur_buffer_ptr_lo			; update current buffer pointer
+				bcc	*+4							; have we rolled over?
+				inc	cur_buffer_ptr_hi			; yes so increase the high byte
+				inc	row_number					; increase the row number
+				lda	row_number					; load current row number
+				cmp	#12							; have we reached the bottom of the screen?
+				beq ++
+				jmp 	drawmap						; no, continue drawing the next row
+++				rts
+color			txa
+				pha
+				lda cur_buffer_ptr_lo
+				clc 
+				adc #$00
+				sta zeropage_pointer_2
+				lda cur_buffer_ptr_hi
+				clc
+				adc #$14
+				sta zeropage_pointer_2+1
+				ldx colortile		
+     			lda tilecolor,x
+        		sta	(zeropage_pointer_2),y	
+				pla
+				tax	
+				rts	
+!zone preparetiles
+preparetiles 
+     			ldy TileCharLookLo_HR,x
+				lda TileCharLookHi_HR,x
+				sty charupA+1
+				sty charupB+1
+				sty charupC+1
+				sty charupD+1
+				sta charupA+2
+				sta charupB+2
+				sta charupC+2
+				sta charupD+2
+				rts		
+;                     
+;PRINTFIRSTSCREEN                                                                                                                
+;Draw the start room  
+;                                                                        										 
+!zone printfirstscreen
+printfirstscreen
+			    lda #<testmap
+				sta map_ptr_lo
+				lda #>testmap
+				sta map_ptr_hi
+printscreen		lda #<screen_char
+				sta cur_buffer_ptr_lo
+				lda #>screen_char
+				sta cur_buffer_ptr_hi
+				jsr startdrawmap
+				rts
+
+
+
+;CLOSEGAMESCREEN                                                            
+;                                                                           
+;Blanks out the gamescreen, for redrawing, loading etc.                     
+;                         
+!zone closegamescreen
+closegamescreen
+				jsr waitpanel
+				lda #$0b
+				sta $d011
+				rts
+;                           
+;OPENGAMESCREEN                                                           
+;                                                                         
+;Open out the gamescreen, for redrawing, loading etc.                     
+;                         
+!zone opengamescreen
+opengamescreen
+				jsr waitpanel
+				lda #$1b
+				sta $d011
+				rts				
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│Create table lookup for print tile HIRES on screen                           │
+;└─────────────────────────────────────────────────────────────────────────────┘				
+TileCharLookLo_HR
+				!set i=0
+				!do  {
+				!byte <tilesdata+i*4 
+				!set i = i + 1
+				} until i > num_tiles
+TileCharLookHi_HR
+				!set i=0
+				!do  {
+				!byte >tilesdata+i*4 
+				!set i = i + 1
+				} until i > num_tiles		

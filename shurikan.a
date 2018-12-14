@@ -1,0 +1,182 @@
+!zone init_sprite_shurikan
+init_sprite_shurikan			
+			lda #43
+			sta param1
+			jsr generaterandomrumber
+			and #$0f
+			tax
+			inx
+			stx param2
+			ldx #5                           ;sprite 5 
+			jsr calcspriteposfromcharpos          ;set sprite position 5 shurikan
+			lda #sprite_shurikan
+			sta sprite_pointer_base,x
+			lda vic_sprite_enable
+            ora #%00100000
+            sta vic_sprite_enable 
+            lda #$00
+            sta vic_sprite_color+5 
+            rts
+;------------------------------------------------------------
+;simply move left/right
+;------------------------------------------------------------
+!zone moveshurikan
+moveshurikan
+		  ldx #$05
+		  inc sprite_anim_delay,x
+          lda sprite_anim_delay,x
+          cmp #3
+          bne .noanimupdate         
+          lda #0
+          sta sprite_anim_delay,x         
+          inc sprite_anim_pos,x
+          lda sprite_anim_pos,x
+          cmp #$04
+          bne +
+          lda #$00
+          sta sprite_anim_pos,x         
++         tay
+          lda shurikan_anim,y
+          sta sprite_pointer_base,x
+.noanimupdate          
+          lda sprite_char_pos_x,x
+          beq .exit                   
+          jsr objectmoveleft 
+          jsr objectmoveleft 
+          rts
+.exit 	  lda #$00
+		  sta move
+		  lda vic_sprite_enable
+          and #%11011111
+          sta vic_sprite_enable 
+          rts
+!zone init_sprite_shurikan_up
+init_sprite_shurikan_up	
+-			jsr generaterandomrumber
+			and #63
+			cmp #10
+			bcc -
+			cmp #30
+			bcs -
+			sta param1
+			lda #25
+			sta param2
+			ldx #5                                ;sprite 5 
+			jsr calcspriteposfromcharpos          ;set sprite position 5 shurikan
+			lda #sprite_shurikan
+			sta sprite_pointer_base,x
+			lda vic_sprite_enable
+            ora #%00100000
+            sta vic_sprite_enable 
+            lda #$00
+            sta vic_sprite_color+5 
+            rts
+;------------------------------------------------------------
+;simply move up
+;------------------------------------------------------------
+!zone moveshurikan_up
+moveshurikan_up
+		  ldx #$05
+		  inc sprite_anim_delay,x
+          lda sprite_anim_delay,x
+          cmp #3
+          bne .noanimupdate         
+          lda #0
+          sta sprite_anim_delay,x         
+          inc sprite_anim_pos,x
+          lda sprite_anim_pos,x
+          cmp #$04
+          bne +
+          lda #$00
+          sta sprite_anim_pos,x         
++         tay
+          lda shurikan_anim,y
+          sta sprite_pointer_base,x
+.noanimupdate          
+          lda sprite_char_pos_y,x
+          beq .exit                   
+          jsr objectmoveup
+          jsr objectmoveup
+          jsr objectmoveleft
+          rts
+.exit 	  lda #$00
+		  sta move
+		  lda vic_sprite_enable
+          and #%11011111
+          sta vic_sprite_enable 
+          rts 
+!zone init_sprite_shurikan_double
+init_sprite_shurikan_double			
+			lda #42
+			sta param1
+			jsr generaterandomrumber
+			and #$0f
+			tax
+			inx
+			stx param2
+			ldx #5                                ;sprite 5 
+			jsr calcspriteposfromcharpos          ;set sprite position 5 shurikan
+			lda #sprite_shurikan
+			sta sprite_pointer_base,x
+			lda #42
+			sta param1
+			jsr generaterandomrumber
+			and #$0f
+			tax
+			inx
+			stx param2
+			ldx #6                                ;sprite 6 
+			jsr calcspriteposfromcharpos          ;set sprite position 6 shurikan
+			lda #sprite_shurikan
+			sta sprite_pointer_base,x
+			lda vic_sprite_enable
+            ora #%01100000
+            sta vic_sprite_enable 
+            lda #$00
+            sta vic_sprite_color+5
+            sta vic_sprite_color+6 
+            rts 
+!zone moveshurikan_double_a
+moveshurikan_double_a
+		  ldx #$05
+moveshurikan_double_c		  
+		  inc sprite_anim_delay,x
+          lda sprite_anim_delay,x
+          cmp #3
+          bne .noanimupdate         
+          lda #0
+          sta sprite_anim_delay,x         
+          inc sprite_anim_pos,x
+          lda sprite_anim_pos,x
+          cmp #$04
+          bne +
+          lda #$00
+          sta sprite_anim_pos,x         
++         tay
+          lda shurikan_anim,y
+          sta sprite_pointer_base,x
+.noanimupdate          
+          lda sprite_char_pos_x,x
+          beq .exit                   
+          jsr objectmoveleft 
+          jsr objectmoveleft 
+          rts
+.exit 	  lda #$00
+		  sta move
+		  lda vic_sprite_enable
+          and #%10011111
+          sta vic_sprite_enable 
+          rts  
+!zone moveshurikan_double_b
+moveshurikan_double_b
+		  ldx #$06
+	      jsr moveshurikan_double_c
+          rts
+.exit 	  lda #$00
+		  sta move
+		  lda vic_sprite_enable
+          and #%10111111
+          sta vic_sprite_enable 
+          rts                                                                    
+shurikan_anim
+			!byte sprite_shurikan,sprite_shurikan+1,sprite_shurikan+2,sprite_shurikan+3         

@@ -1,0 +1,52 @@
+!zone endgame
+endgame
+            lda #0
+            sta scrollx
+			lda #<screen_char
+			sta zeropage_pointer_1
+			lda #>screen_char
+			sta zeropage_pointer_1+1
+			lda #<endtxt
+			sta zeropage_pointer_2
+			lda #>endtxt
+			sta zeropage_pointer_2+1
+			ldx #$0a
+.lp0		ldy #$00
+.lp1 		lda (zeropage_pointer_2),y
+			clc
+            adc #86
+			sta (zeropage_pointer_1),y
+			iny
+			cpy #40
+			bne .lp1
+			lda zeropage_pointer_1
+			clc
+			adc #$28
+			sta zeropage_pointer_1
+			bcc +
+			inc zeropage_pointer_1+1
++			lda zeropage_pointer_2
+			clc
+			adc #$28
+			sta zeropage_pointer_2
+			bcc +
+			inc zeropage_pointer_2+1
++			dex
+			bpl	.lp0
+			jmp gamecomplete
+			
+		;	           1         2         3         
+		;    0123456789012345678901234567890123456789
+endtxt
+		!scr"            congratulations!            "
+		!scr"   you have completed jump ninja and    " 
+		!scr"   i hope your son and yourself have    "
+        !scr"       enjoyed this little game         "
+        !scr"  i have created with love for my kid.  " 
+        !scr"         we don't want to be            "
+        !scr"     the last generation using this     "
+		!scr"   beautiful machine and it would be    "
+        !scr"     great if we all can motivate       "
+        !scr"   our kids to embrace this passion.    "
+        !scr"       long live the breadbox!          "
+		

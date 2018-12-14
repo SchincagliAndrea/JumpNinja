@@ -1,0 +1,208 @@
+!zone drawscores
+drawscores      ldy #$02
+                ldx #$02
+ds1             lda score,x
+                lsr
+                lsr
+                lsr
+                lsr
+                clc
+                adc #48
+                sta screen_char+24*40+6,y
+                iny
+                lda score,x
+                and #$0f
+                clc
+                adc #48
+                sta screen_char+24*40+6,y
+                iny
+                dex
+                bpl ds1
+                lda ninjalive
+                clc
+                adc #48
+                sta screen_char+24*40+38  
+                lda level
+                clc
+                adc #48
+                sta screen_char+24*40+23                   
+                rts
+addscore   
+			    ldy #0            ; in Y il puntatore al punteggio da incrementare       
+                sed
+                lda score
+                clc
+                adc scorelo,y
+                sta score
+                lda score+1
+                adc scorehi,y
+                sta score+1
+                bcc noextra2
+noextra2        lda score+2
+                adc #$00
+                sta score+2
+                cld
+                jsr drawscores
+                rts                
+drawpaneltext                
+                ldx #39
+ip_loop  		lda paneltext,x
+                sta screen_char+24*40,x
+                lda #$01
+                sta $d800+24*40,x
+                dex
+                bpl ip_loop
+                lda #7
+                sta $d800+24*40+26
+                sta $d800+24*40+27
+                sta $d800+24*40+28 
+                ldx #64
+                stx screen_char+24*40+26
+                inx
+                stx screen_char+24*40+27
+                inx
+                stx screen_char+24*40+28
+                
+                lda #$00
+                sta char0+2
+                sta char1+2
+                sta char2+2
+                rts	
+char0			=$e000+64*8
+char1			=$e000+65*8
+char2			=$e000+66*8                	
+maposx			lda mapx
+				cmp #20
+				bne +
+				lda char0+2
+				ora #%11000000
+				sta char0+2
++				cmp #40
+				bne +
+				lda char0+2
+				and #%00111111
+				ora #%00110000
+				sta char0+2
++ 				cmp #60
+				bne +	
+				lda char0+2
+				and #%00001111
+				ora #%00001100
+				sta char0+2	
++				cmp #80
+				bne +
+				sta checkpoint	    ; 66 primo check point
+				lda char0+2
+				and #%00000011
+				ora #%00000011
+				sta char0+2	
++				cmp #100
+				bne +
+				lda #0
+				sta char0+2
+				lda char1+2
+				ora #%11000000
+				sta char1+2
++				cmp #120
+				bne +
+				lda char1+2
+				and #%00111111
+				ora #%00110000
+				sta char1+2
++ 				cmp #140
+				bne +		
+				lda char1+2
+				and #%00001111
+				ora #%00001100
+				sta char1+2	
++				cmp #160
+				bne +
+				sta checkpoint	; 146 secondo check point
+				lda char1+2
+				and #%00000011
+				ora #%00000011
+				sta char1+2	
++				cmp #180
+				bne +
+				lda #0
+				sta char1+2	
+				lda char2+2
+				ora #%11000000
+				sta char2+2		
++				cmp #200
+				bne +						 	
+		        lda char2+2
+				and #%00111111
+				ora #%00110000
+				sta char2+2  
++				cmp #220
+				bne +						 	
+		        lda char2+2
+				and #%00000011
+				ora #%00001100
+				sta char2+2 
++				cmp #240
+				bne +						 	
+		        lda char2+2
+				and #%00000011
+				ora #%00000011
+				sta char2+2  
++				rts	
+!zone checkhigscore
+checkhigscore
+title           lda score+2
+                cmp hiscore+2
+                bcc title_nohiscore
+                beq title_check2
+                bcs title_hiscore
+title_check2    lda score+1
+                cmp hiscore+1
+                bcc title_nohiscore
+                beq title_check3
+                bcs title_hiscore
+title_check3    lda score
+                cmp hiscore
+                bcc title_nohiscore
+title_hiscore   lda score
+                sta hiscore
+                lda score+1
+                sta hiscore+1
+                lda score+2
+                sta hiscore+2
+title_nohiscore
+                rts
+drawhiscore     ldx #$02
+                ldy #21
+ds2             lda hiscore,x
+                lsr
+                lsr
+                lsr
+                lsr
+                clc
+                adc #48
+                sta screen_char+24*40,y
+                iny
+                lda hiscore,x
+                and #$0f
+                clc
+                adc #48
+                sta screen_char+24*40,y
+                iny
+                dex
+                bpl ds2       
+                rts         
+			     				      					     					
+paneltext      
+			!scr " score:         level:         lives:      " 
+score  
+			!byte 0,0,0
+hiscore     
+			!byte 0,0,0
+newmapx	
+			!byte 0			
+			
+scorelo     
+			!byte $25,$50,$00
+scorehi    
+			!byte $00,$00,$01
+				

@@ -1,0 +1,425 @@
+!sl "var"
+screen_char             = $c400 ; screen memory
+screen_buffer			= $e400 ; 1 buffer screen memory
+color_buffer			= $e800 ; 2 buffer color memory
+font					= $c800 ; game font
+fontchar				= $e000 ; char font
+colorram 				= $d800	; color memory
+playmusic				= $8000
+param0					= $07	
+param1                  = $08
+param2                  = $09
+param3   	        	= $0a
+param4                  = $0b
+param5                  = $0c
+zeropage_pointer_1      = $14
+zeropage_pointer_2      = $16
+zeropage_pointer_3      = $18
+zeropage_pointer_4      = $1a
+zeropage_pointer_5      = $1c
+zeropage_pointer_6      = $1e
+zeropage_pointer_7      = $20
+zeropage_pointer_8      = $22
+row_number	 			= $24
+col_number				= $25
+map_ptr_lo				= $26
+map_ptr_hi				= $27
+cur_buffer_ptr_lo		= $28		; pointer to current buffer
+cur_buffer_ptr_hi		= $29		; (ie, either SCR or DBL) 
+colortile               = $2a
+scrollx      		    = $2b
+joystick   			    = $2c
+prevjoy         		= $2d
+mapadrlo        		= $2e
+mapadrhi        		= $2f
+mapx            		= $30
+blockx          		= $31
+temp1           		= $32
+temp2           		= $33
+temp3           		= $34
+temp4           		= $35
+temp5           		= $36
+rastercount     		= $37
+temp6					= $38
+temp7   				= $39
+temp8					= $3a
+level                   = $3b
+savea					= $3c
+savex					= $3d
+savey					= $3e 
+ninjalive 				= $3f			  ;number of live
+ninja_anim_delay        = $40             ;anim delay counter
+ninja_anim_pointer		= $41			  ;anim ram pointer
+screen					= $42
+gamemode				= $43
+button_released			= $44
+gamemodeninja			= $45
+checkpoint				= $46
+clear					= $47
+move					= $48
+ntsc_music				= $4a
+keyrowtbl      			= $4b
+keytype        			= $4c
+keypress       			= $4d
+collisiony				= $4e
+num_tiles 	        	= 128     ; tiles 0-17 (128 tiles 2x2)
+;
+vic_sprite_x_pos        = $d000
+vic_sprite_y_pos        = $d001
+vic_sprite_x_extend     = $d010
+vic_sprite_enable       = $d015
+vic_control             = $d016
+vic_memory_control      = $d018
+vic_sprite_multicolor   = $d01c
+vic_sprite_multicolor_1 = $d025
+vic_sprite_multicolor_2 = $d026
+vic_sprite_color        = $d027
+vic_charset_multicolor_1= $d022
+vic_charset_multicolor_2= $d023
+vic_border_color		= $d020
+;
+sprite_pointer_base     = $c7f8
+sprite_base             = 64              ; pointer to the first sprite at $23c0/$40=$8f (143 decimale)
+sprite_player           = sprite_base     ; NINJA : )
+sprite_sun              = sprite_base+37  ; SUN   : )
+sprite_cloud            = sprite_base+38  ; CLOUD   : )
+sprite_countdown        = sprite_base+34  ; COUNTDOWN   9-0 : )
+sprite_jump0            = sprite_base+35  ; JUMP 0  : )
+sprite_jump1            = sprite_base+36  ; JUMP 1  : )
+sprite_death            = sprite_base+8   ; DEATH : )
+sprite_ninja			= sprite_base+40  ; BLACK NINJA : )
+sprite_cloud1			= sprite_base+39  ; CLOUD NINJA : )
+sprite_ring				= sprite_base+12  ; RING NINJA : )
+sprite_shurikan         = sprite_base+42  ; SHURIKAN : )
+sprite_bonus			= sprite_base+46  ; BONUS : )
+sprite_gameover			= sprite_base+49
+sprite_center_offset_x  = 3               ;offset x from calculated char pos to true sprite pos
+sprite_center_offset_y  = 12              ;offset Y from calculated char pos to true sprite pos
+jump_fall				= 26
+jump_table_size         = jump_fall       ;entries of jump table
+fall_table_size         = jump_fall       ;entries of fall table
+object_height			= 16
+; var
+levelmap				= $49              ;start level
+lenghtmap				= 250
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│Basic startUp                                                                │
+;└─────────────────────────────────────────────────────────────────────────────┘
+			*= $0801
+			!byte $0b,$08
+			!word 2015
+			!byte $9e
+			!text "2061"
+			!byte 0,0,0	
+			sei
+			cld
+			ldx #$ff
+			txs
+			lda #$30
+			sta $01
+			jsr copysprite
+			lda #$35
+			sta $01
+			lda #36
+			sta clear
+			jsr clearscreen
+--		    lda $d012                 ; simple pal/ntsc check
+-  		    cmp $d012
+  		    beq -
+            bmi --
+            cmp #$37                  ; leaves $37 in a if on pal
+            bne +
+            lda #$00
+            sta ntsc_music
+            lda #$69
+            sta irqtime+1
+            lda #$00
+            sta ntscfix+1
+            beq .copyfont
++   	    lda #$01
+		    sta ntsc_music
+		    lda #$6d
+		    sta irqtime+1 
+		    lda #$1a
+		    sta ntscfix+1 	
+;-----------------------------------------------
+;copy game font and char font
+;----------------------------------------------
+.copyfont
+			lda #<fonts
+          	sta zeropage_pointer_1
+          	lda #>fonts
+          	sta zeropage_pointer_1 + 1
+          	lda #<font
+          	sta zeropage_pointer_2
+          	lda #>font
+          	sta zeropage_pointer_2 + 1
+			jsr copycharset
+;-----------------------------------------------
+			lda #<fontschar
+          	sta zeropage_pointer_1
+          	lda #>fontschar
+          	sta zeropage_pointer_1 + 1
+          	lda #<fontchar
+          	sta zeropage_pointer_2
+          	lda #>fontchar
+          	sta zeropage_pointer_2 + 1
+			jsr copycharset
+;-----------------------------------------------
+    		jsr showtext
+game    	jsr titlescreen						
+			jsr initraster
+			jsr initvideo
+			lda #$00
+			tax
+			jsr playmusic
+ 			jsr initvar
+gamestart	lda #$00
+			sta gamemode
+			sta sprite_active+0
+			sta sprite_active+1
+		    sta sprite_active+2
+		    sta sprite_active+3
+		    sta sprite_active+4
+		    sta sprite_active+5
+		    sta sprite_active+6
+		    sta sprite_active+7
+			jsr initscroll
+			jsr drawpaneltext
+			jsr drawscores
+initlevel0  jsr waitras
+            lda #7           ; numero di pixel da scrollare
+            jsr doscroll
+            lda mapx
+            cmp checkpoint           ; lunghezza mappa per lo scrolling iniziale
+            bcs initlevel1
+            jmp initlevel0
+initlevel1  lda #$01
+			sta gamemode
+			jsr init_sprite_ninja
+			jsr init_sprite_sun
+			jsr init_sprite_cloud
+			jsr init_sprite_cdown
+            jsr countdown
+gameloop    
+			jsr checkscroll
+            jsr doscroll
+            jsr Shift_water
+            jsr playercontrol
+            jsr moveobjects 
+            jsr maposx
+            jsr checkcollisions
+			jsr waitras
+			jmp gameloop
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│INIT VARIABLE	                                                               │
+;│                                                                             │
+;│Init all variable of the game                                                │
+;└─────────────────────────────────────────────────────────────────────────────┘             
+!zone initvar
+initvar
+ 			lda #$05
+ 			sta ninjalive   ; number of live : )
+ 			lda #$00
+ 		    sta ninja_anim_delay
+ 		    sta ninja_anim_pointer
+ 		    sta newmapx	
+ 		    sta move
+ 		    sta anim
+ 		    sta animdeath
+ 		    lda #$08     ;1-9
+ 		    sta levelmap
+ 		    lda #20
+ 		    sta checkpoint
+			lda #$00
+            sta score
+            sta score+1
+            sta score+2
+            sta $d020
+            sta $d021
+            sta $d015                       ;Sprites off
+            sta $d01b                       ;Sprites on top of BG
+            sta $d017                       ;Sprite Y-expand off
+            sta $d01d                       ;Sprite X-expand off
+ 		    lda levelmap
+ 		    sta level                      ; start level 0	
+	        ldx #$00
+	        lda #$00
+.ClearObjectLoop                
+            sta sprite_pos_x_extend
+            sta sprite_active,x
+            sta sprite_char_pos_x,x
+            sta sprite_char_pos_y,x
+            sta sprite_char_pos_x_delta,x
+            sta sprite_char_pos_y_delta,y
+    	    sta sprite_anim_pos,x
+            sta sprite_anim_delay,x
+            inx
+       	    cpx #8
+      	    bne .ClearObjectLoop		
+ 			rts	              			
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│INITVIDEO                                                                    │
+;│                                                                             │
+;│Initializes various video registers, like sprite appearance & colors.        │
+;└─────────────────────────────────────────────────────────────────────────────┘
+!zone initvideo
+initvideo  	
+			lda $d011
+            bpl initvideo
+            lda #%10000010
+            sta vic_sprite_multicolor  
+            lda #$0b
+            sta vic_sprite_multicolor_1 
+            lda #$01
+			sta vic_sprite_multicolor_2 
+			lda #$00
+			sta vic_sprite_color 
+			lda #$02
+			sta vic_sprite_color+1 
+			lda #$07
+			sta vic_sprite_color+2   
+			lda #$01
+			sta vic_sprite_color+3   
+			sta vic_sprite_color+4  
+			sta vic_sprite_color+5  
+			sta vic_sprite_color+6
+			rts
+initvieotext			
+    		lda #$c8
+			sta $d016		                
+			lda $dd00						;Select
+			and #$fc						;VIC Bank 3
+			sta $dd00						; Screen ram at $c000-$c3ff, $c400-$c7ff buffer      
+            ;lda #%00010010
+            ;sta $d018                       ; Font at $c800-$cfff
+            lda #%00011000                  ; charset at $e000
+            sta $d018
+            rts
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│WAITPANEL                                                                    │
+;│                                                                             │
+;│Wait for the raster to reach line $f8 this is keeping our timing stable      │
+;└─────────────────────────────────────────────────────────────────────────────┘            
+!zone waitpanel
+waitpanel
+-	   		lda $d012
+			bpl -
+-			lda $d012
+			bmi -
+			rts            
+!zone copycharset
+copycharset
+          ldx #$00
+          ldy #$00
+          lda #0
+          sta param2
+.nextline
+          lda (zeropage_pointer_1),y
+          sta (zeropage_pointer_2),y
+          inx
+          iny
+          cpx #$08
+          bne .nextline
+          cpy #$00
+          bne .pageboundarynotreached       
+          ;we've reached the next 256 bytes, inc high byte
+          inc zeropage_pointer_1 + 1
+          inc zeropage_pointer_2 + 1
+.pageboundarynotreached
+          ;only copy 254 chars to keep irq vectors intact
+          inc param2
+          lda param2
+          cmp #255
+          beq .copycharsetdone
+          ldx #$00
+          jmp .nextline
+.copycharsetdone
+          rts
+!zone copysprite
+copysprite
+		  lda #<sprites
+          sta zeropage_pointer_1
+          lda #>sprites
+          sta zeropage_pointer_1 + 1
+          lda #$00
+          sta zeropage_pointer_2
+          lda #$d0
+          sta zeropage_pointer_2 + 1
+          ldx #$00
+          ldy #$00
+.nextline
+          lda (zeropage_pointer_1),y
+          sta (zeropage_pointer_2),y
+          iny
+          bne .nextline
+          inc zeropage_pointer_1 + 1
+          inc zeropage_pointer_2 + 1
+          inx
+          cpx #$0f
+          bne .nextline
+          rts
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│CLEARSCREEN                                                                  │
+;│                                                                             │
+;│Clears the text screen                                                       │
+;└─────────────────────────────────────────────────────────────────────────────┘
+!zone clearscreen
+clearscreen                                   
+clearscreen                                    
+                ldx #25                         ;20 rows to do
+                lda #<screen_char
+                sta zeropage_pointer_1 
+                lda #>screen_char
+                sta zeropage_pointer_1+1
+.loop1          ldy #$27                        ;40 columns to do
+.loop2          lda clear                        ;Space to screen
+                sta (zeropage_pointer_1),y
+                dey
+                bpl .loop2
+                lda zeropage_pointer_1          ;Go one row down
+                clc
+                adc #40
+                sta zeropage_pointer_1
+                bcc .not1
+                inc zeropage_pointer_1+1
+.not1           dex                             ;All rows done?
+                bne .loop1
+                rts  
+;------------------------------------------------------------
+;generates a sometimes random number
+;------------------------------------------------------------
+!zone generaterandomnumber
+generaterandomrumber
+          lda $dc04
+          eor $dc05
+          eor $dd04
+          adc $dd05
+          eor $dd06
+          eor $dd07
+          rts                          
+;┌─────────────────────────────────────────────────────────────────────────────┐
+;│Include Soruce code                                                          │
+;└─────────────────────────────────────────────────────────────────────────────┘
+			!source "sprite.a" 
+			!source "score.a"   
+			!source "screen_scrolling.a"
+			!source "raster.a"
+			!source "joystick.a"
+			!source "bongo.a"
+			!source "titlescreen.a"
+			!source "shurikan.a"
+			!source "objectmove.a"
+			!source "gameover.a"
+		    !source "endgame.a"
+fonts		!binary "graphics\font.bin"
+fontschar   !binary "graphics\font_char.bin"
+sprites     !binary "graphics\sprites.bin"
+blocks		!binary "graphics\tiles.bin"   
+color       !binary "graphics\attribs.bin" 
+map         !binary "graphics\map1-3.bin"
+bitmap      !binary "bitmap\bitmap.bin"
+colormem    !binary "bitmap\colormem.bin"
+videomem    !binary "bitmap\videomem.bin" 
+            *=$8000
+music       !binary "Jump_Ninja.sid",,$7e
